@@ -6,7 +6,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
-#include "sqlite3.h"
+#include "sqlite-amalgamation-3470000/sqlite3.h"
 #include <stdbool.h>
 
 #define PORT 8080
@@ -28,7 +28,7 @@ void resetConsoleTextColor() {
 
 int mode = 0;
 char answer[10];
-const char *commands[] = {"exit", "help", "userID", "changeMode", "status", "shutdown", "open"};
+const char *commands[] = {"closeServer", "help", "userID", "changeMode", "status", "shutdown", "open", "exit"};
 int usernameID[50];
 int scoreID = 0;
 
@@ -61,11 +61,17 @@ void cleaner(char* array){
     }
 }
 
-void DoCommands(int result, int placeID, char* name, char buffer[]){
+void DoCommands(int result, int placeID, char* name, char buffer[], SOCKET client_sock){
     int commandSize = sizeof(commands) / sizeof(commands[0]);
     switch (result) {
         case 0:
-            exit(0);
+            if(strcmp(name, "admin") == 0){
+                exit(0);
+            }
+            else{
+                printf("This command can use only admin!\n");
+            }
+            break;
         case 1:
             if(mode == 1){
                 printf("Number of commands: %d\n", commandSize);
@@ -121,6 +127,10 @@ void DoCommands(int result, int placeID, char* name, char buffer[]){
             char command_to_run[BUFFER_SIZE];
             sprintf(command_to_run, "start %s", program);
             system(command_to_run);
+            break;
+        case 7:
+            char *close = "Closing...";
+            send(client_sock, close, strlen(close), 0);
             break;
         default:
             setConsoleTextColor(FOREGROUND_RED);
@@ -344,14 +354,18 @@ void *handle_client(void *arg) {
             command[place] = '\0';
 
             int result = check_command(command);
-            DoCommands(result, c_data->placeUser, c_data->name, buffer);
+            DoCommands(result, c_data->placeUser, c_data->name, buffer, client_sock);
         }
     }
 
     if (valread == 0) {
+        setConsoleTextColor(FOREGROUND_RED | FOREGROUND_GREEN);
         printf("Client disconnected: %s\n", c_data->name);
+        resetConsoleTextColor();
     } else {
+        setConsoleTextColor(FOREGROUND_RED);
         printf("Receive failed: %d\n", WSAGetLastError());
+        resetConsoleTextColor();
     }
 
     // Close the client socket

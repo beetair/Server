@@ -81,6 +81,33 @@ int main() {
             printf("Send failed\n");
             break;
         }
+
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sock, &readfds);
+
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 1000;
+
+        int activity = select(sock + 1, &readfds, NULL, NULL, &timeout);
+
+        if(activity > 0 && FD_ISSET(sock, &readfds)){
+            int valread = recv(sock, message, sizeof(message) - 1, 0);
+            if (valread <= 0) {
+                printf("Receive failed or server closed connection\n");
+                closesocket(sock);
+                WSACleanup();
+                return 1;
+            }
+            message[valread] = '\0';
+            printf("%s", message);
+            if(strcmp(message, "Closing...") == 0){
+                closesocket(sock);
+                WSACleanup();
+                exit(0);
+            }
+        }
     }
 
     // Close the socket
